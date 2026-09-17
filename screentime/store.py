@@ -1,15 +1,117 @@
-"""CorrectionList: corrections.md time ranges for the prompt-only rules.
+"""Persistence: decision cache, correction list, and poll state.
 
-An explicit user statement wins over every auto-label. Last entry wins on
-overlap. Unknown rules and malformed sections are skipped.
+All file-backed stores live here: cache.md (model verdicts),
+corrections.md (explicit time-range overrides), state.json (poll position).
 """
 from __future__ import annotations
 
+import json
+import os
 import re
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from functools import lru_cache
 
-from screentime.config import CORRECTION_KINDS, DOWNGRADE, FORCE_NON
+from screentime.config import CORRECTION_KINDS, DOWNGRADE, FORCE_NON, LABELS
+
+# --- decision cache ---
+
+SECTION_RE = re.compile(r"^##\s+(app|site):\s*(.+?)\s*$")
+HEADER = ("# Classification decisions\n\n_One section per "
+          "application or website. Edit tag:/reason: by hand; "
+          "corrections stick._\n")
+
+
+class DecisionCache:
+    def __init__(self, path, max_entries=5000):
+        self.path = path
+        self.max_entries = max_entries
+        self._data = {}
+        self._appends = 0
+        self.load()
+
+    def load(self):
+        self._data = {}
+        self._appends = 0
+        try:
+            with open(self.path, encoding="utf-8") as f:
+                text = f.read()
+        except FileNotFoundError:
+            return self._data
+        kind = key = None
+        label = reason = None
+
+        def flush():
+            if kind and key and label in LABELS:
+                self._data[(kind, key)] = (label, reason or "")
+
+        for line in text.splitlines():
+            s = line.strip()
+            m = SECTION_RE.match(s)
+            if m:
+                flush()
+                kind, key, label, reason = m.group(1), m.group(2).lower(), None, None
+                continue
+            if kind is None:
+                continue
+            if s.startswith("tag:"):
+                label = s[4:].strip()
+            elif s.startswith("reason:"):
+                reason = s[7:].strip()
+        flush()
+        if len(self._data) > self.max_entries:
+            for k in list(self._data)[: len(self._data) - self.max_entries]:
+                del self._data[k]
+            self._rewrite()
+        return self._data
+
+    def __len__(self):
+        return len(self._data)
+
+    def __contains__(self, key):
+        return key in self._data
+
+    def get(self, kind, key):
+        return self._data.get((kind, key))
+
+    def put(self, kind, key, label, reason, model=""):
+        self._data[(kind, key)] = (label, reason)
+        try:
+            new_file = not os.path.exists(self.path)
+            with open(self.path, "a", encoding="utf-8") as f:
+                if new_file:
+                    f.write(HEADER)
+                f.write(f"\n## {kind}: {key}\ntag: {label}\nreason: {reason}\n"
+                        f"decided: {datetime.now(timezone.utc).isoformat()}\n"
+                        f"model: {model}\n")
+            self._appends += 1
+            self._maybe_compact()
+        except Exception:
+            pass
+
+    def hand_fixes(self):
+        return {k: v for k, v in self._data.items() if "hand " in (v[1] or "")}
+
+    def _maybe_compact(self):
+        # Appends duplicate older sections; rewrite occasionally to bound
+        # file growth instead of letting it grow without limit.
+        if self._appends >= 500:
+            self._rewrite()
+            self._appends = 0
+
+    def _rewrite(self):
+        try:
+            tmp = self.path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(HEADER)
+                for (kind, key), (label, reason) in self._data.items():
+                    f.write(f"\n## {kind}: {key}\ntag: {label}\nreason: {reason}\n"
+                            f"decided: kept\nmodel: mixed\n")
+            os.replace(tmp, self.path)
+        except Exception:
+            pass
+
+
+# --- corrections ---
 
 HM_RE = re.compile(r"^\s*(\d{1,2}):(\d{2})(?:\s*([ap])\.?\s*m\.?)?\s*$")
 RANGE_TWO_DAY_RE = re.compile(
@@ -150,3 +252,37 @@ class CorrectionList:
                 f.write(f"note: {note[:200]}\n")
         self.entries = self.load()
         return head[3:], overlap
+
+
+# --- poll state ---
+
+class PollState:
+    def __init__(self, path):
+        self.path = path
+        self._data = {}
+        self.load()
+
+    def load(self):
+        try:
+            with open(self.path, encoding="utf-8") as f:
+                self._data = json.load(f)
+        except Exception:
+            self._data = {}
+        return self._data
+
+    def get_last(self, bucket_id):
+        return self._data.get(bucket_id, {}).get("last_id", -1)
+
+    def set_last(self, bucket_id, last_id):
+        if self._data.get(bucket_id, {}).get("last_id") == last_id:
+            return  # skip redundant writes when nothing advanced
+        self._data[bucket_id] = {
+            "last_id": last_id,
+            "updated": datetime.now(timezone.utc).isoformat()}
+        try:
+            tmp = self.path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self._data, f, indent=2)
+            os.replace(tmp, self.path)
+        except Exception:
+            pass

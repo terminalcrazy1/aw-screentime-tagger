@@ -390,3 +390,15 @@ tag: non-screentime
 reason: non-gaming/non-video activity
 decided: 2026-09-17T19:44:32.871908+00:00
 model: qwen2.5:7b
+
+## site: hackintosh.com
+tag: non-screentime
+reason: website browsing
+decided: 2026-09-17T20:19:24.917771+00:00
+model: qwen2.5:7b
+
+## site: tonymacx86.com
+tag: non-screentime
+reason: browsing
+decided: 2026-09-17T20:21:15.828552+00:00
+model: qwen2.5:7b

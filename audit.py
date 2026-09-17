@@ -27,10 +27,11 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_PATH = os.path.join(BASE_DIR, "cache.md")
-STATE_PATH = os.path.join(BASE_DIR, "state.json")
-JOURNAL_PATH = os.path.join(BASE_DIR, "audit_journal.json")
-REPORT_PATH = os.path.join(BASE_DIR, "audit.md")
+DATA_DIR = os.environ.get("SCREENTIME_DATA_DIR", BASE_DIR)
+CACHE_PATH = os.path.join(DATA_DIR, "cache.md")
+STATE_PATH = os.path.join(DATA_DIR, "state.json")
+JOURNAL_PATH = os.path.join(DATA_DIR, "audit_journal.json")
+REPORT_PATH = os.path.join(DATA_DIR, "audit.md")
 
 REVIEW_MODEL = os.environ.get("MISTRAL_REVIEW_MODEL", "mistral-small-latest")
 LABELS = ("violent-screentime", "screentime", "non-screentime")
@@ -215,8 +216,8 @@ def apply_alterations(changes):
         if head not in by_head:
             continue
         c = by_head[head]
-        s = _re2.sub(r'(?m)^tag:\s*\S+', 'tag: ' + c["new_tag"], s, count=1)
-        s = _re2.sub(r'(?m)^reason:\s*.+$', 'reason: ' + c["new_reason"], s,
+        s = _re.sub(r'(?m)^tag:\s*\S+', 'tag: ' + c["new_tag"], s, count=1)
+        s = _re.sub(r'(?m)^reason:\s*.+$', 'reason: ' + c["new_reason"], s,
                    count=1)
         parts[i] = s
         n += 1
@@ -342,12 +343,12 @@ def cmd_revert():
         if head not in by_head:
             continue
         c = by_head[head]
-        cur = _re2.search(r'(?m)^tag:\s*(\S+)', s)
+        cur = _re.search(r'(?m)^tag:\s*(\S+)', s)
         if cur and cur.group(1) == c["new_tag"]:
-            s = _re2.sub(r'(?m)^tag:\s*\S+', 'tag: ' + c["old_tag"], s, count=1)
-            s = _re2.sub(r'(?m)^reason:\s*.+$', 'reason: ' + c["old_reason"], s,
+            s = _re.sub(r'(?m)^tag:\s*\S+', 'tag: ' + c["old_tag"], s, count=1)
+            s = _re.sub(r'(?m)^reason:\s*.+$', 'reason: ' + c["old_reason"], s,
                        count=1)
-            s = _re2.sub(r'(?m)^reviewed:\s*\S.*\n?', '', s)
+            s = _re.sub(r'(?m)^reviewed:\s*\S.*\n?', '', s)
             parts[i] = s
             n += 1
         else:

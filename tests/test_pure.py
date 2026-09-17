@@ -6,9 +6,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from screentime.classify.sites import extract_site, target
-from screentime.classify.violent import load_violent
-from screentime.store.corrections import (
+from screentime.classify import extract_site, load_violent, target
+from screentime.store import (
     CorrectionList, parse_hm, parse_section_head, resolve_day,
 )
 

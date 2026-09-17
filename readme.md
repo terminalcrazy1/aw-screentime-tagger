@@ -10,10 +10,8 @@ top-level URLs (`youtube.com`). Titles are never used. Decisions live in
 
 Layout (`screentime/` package, `poll.py` is a thin entry): `cli.py`
 dispatches to `app.ScreentimeTagger`, which owns `config.Config`,
-`aw/client.ActivityWatchClient`, `classify/classifier.Classifier`
-(keys in `classify/sites.py`, list in `classify/violent.py`),
-`store/cache.DecisionCache`, `store/corrections.CorrectionList`,
-`store/state.PollState`, and `system/load_gate.LoadGate`.
+`aw.ActivityWatchClient`, `classify.Classifier`, `store.DecisionCache`,
+`store.CorrectionList`, `store.PollState`, and `gate.LoadGate`.
 Shared HTTP retries live in `http.py`. Pure-function tests in `tests/`.
 
 Hierarchy: `violent-screentime` if matching `violent.md` (model-applied) >

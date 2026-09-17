@@ -8,15 +8,13 @@ import time
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from screentime.aw.client import ActivityWatchClient
-from screentime.classify.classifier import Classifier
-from screentime.classify.sites import target
-from screentime.classify.violent import load_violent, mtime_ns
+from screentime.aw import ActivityWatchClient
+from screentime.classify import Classifier, load_violent, mtime_ns, target
 from screentime.config import CORRECTION_KINDS
-from screentime.store.cache import DecisionCache
-from screentime.store.corrections import CorrectionList, parse_hm, resolve_day
-from screentime.store.state import PollState
-from screentime.system.load_gate import LoadGate
+from screentime.gate import LoadGate
+from screentime.store import (
+    CorrectionList, DecisionCache, PollState, parse_hm, resolve_day,
+)
 
 if TYPE_CHECKING:
     from screentime.config import Config

@@ -36,12 +36,13 @@ class Config:
     @classmethod
     def from_env(cls, base_dir=None):
         here = str(base_dir or repo_root())
+        data = os.environ.get("SCREENTIME_DATA_DIR", here)
         return cls(
             base_dir=here,
-            cache_path=os.path.join(here, "cache.md"),
-            state_path=os.path.join(here, "state.json"),
-            violent_path=os.path.join(here, "violent.md"),
-            corrections_path=os.path.join(here, "corrections.md"),
+            cache_path=os.path.join(data, "cache.md"),
+            state_path=os.path.join(data, "state.json"),
+            violent_path=os.path.join(data, "violent.md"),
+            corrections_path=os.path.join(data, "corrections.md"),
             aw_host=os.environ.get("AW_HOST", "http://127.0.0.1:5600"),
             ollama_url=os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"),
             ollama_model=os.environ.get("OLLAMA_MODEL", "qwen2.5:7b"),
