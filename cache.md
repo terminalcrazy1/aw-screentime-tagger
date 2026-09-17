@@ -384,3 +384,9 @@ tag: non-screentime
 reason: browsing
 decided: 2026-09-17T19:35:50.258058+00:00
 model: qwen2.5:7b
+
+## app: git-credential-manager.exe
+tag: non-screentime
+reason: non-gaming/non-video activity
+decided: 2026-09-17T19:44:32.871908+00:00
+model: qwen2.5:7b
