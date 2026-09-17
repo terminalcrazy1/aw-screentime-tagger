@@ -1,0 +1,45 @@
+"""Configuration: every knob in one dataclass."""
+import os
+from dataclasses import dataclass
+
+
+LABELS = ("violent-screentime", "screentime", "non-screentime")
+
+CORRECTION_KINDS = ("with_friends", "extra", "educational", "nonviolent")
+FORCE_NON = ("with_friends", "extra", "educational")
+DOWNGRADE = ("nonviolent",)
+
+
+@dataclass
+class Config:
+    base_dir: str = ""
+    cache_path: str = ""
+    state_path: str = ""
+    violent_path: str = ""
+    corrections_path: str = ""
+    aw_host: str = "http://127.0.0.1:5600"
+    ollama_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "qwen2.5:7b"
+    poll_interval: int = 15
+    cache_max: int = 5000
+    max_gpu_util: int = 40
+    min_free_mb: int = 5500
+    idle_gpu_util: int = 10
+
+    @classmethod
+    def from_env(cls):
+        here = os.path.dirname(os.path.abspath(__file__))
+        return cls(
+            base_dir=here,
+            cache_path=os.path.join(here, "cache.md"),
+            state_path=os.path.join(here, "state.json"),
+            violent_path=os.path.join(here, "violent.md"),
+            corrections_path=os.path.join(here, "corrections.md"),
+            aw_host=os.environ.get("AW_HOST", "http://127.0.0.1:5600"),
+            ollama_url=os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"),
+            ollama_model=os.environ.get("OLLAMA_MODEL", "qwen2.5:7b"),
+            poll_interval=int(os.environ.get("POLL_INTERVAL", "15")),
+            max_gpu_util=int(os.environ.get("AW_MAX_GPU_UTIL", "40")),
+            min_free_mb=int(os.environ.get("AW_MIN_FREE_MB", "5500")),
+            idle_gpu_util=int(os.environ.get("AW_IDLE_GPU_UTIL", "10")),
+        )
