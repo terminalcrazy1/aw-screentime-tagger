@@ -35,7 +35,7 @@ VRAM back *and* GPU at/below `AW_IDLE_GPU_UTIL` (default 10); the band
 in between holds last state so borderline readings can't flap it.
 Manual `once`/`recheck` always run immediately.
 
-## Phase 2: the auditor (`audit.py`, all logic inside)
+## Phase 2: the auditor (`screentime/audit.py`, all logic inside)
 
 Every night at 00:00 ("Screentime Auditor" scheduled task), Mistral Small
 reviews all cache decisions newer than the last audit and writes any
