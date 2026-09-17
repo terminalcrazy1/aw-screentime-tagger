@@ -8,11 +8,13 @@ Keys are applications (`spotify.exe`) or, for browser windows, website
 top-level URLs (`youtube.com`). Titles are never used. Decisions live in
 `cache.md`, one section per key — edit by hand, corrections stick.
 
-Layout (one folder, OOP): `poll.py` (CLI) builds `app.ScreentimeTagger`,
-which owns `config.Config`, `aw_client.ActivityWatchClient`,
-`classifier.Classifier`, `cache.DecisionCache`,
-`corrections.CorrectionList`, `state.PollState`, and
-`load_gate.LoadGate`.
+Layout (`screentime/` package, `poll.py` is a thin entry): `cli.py`
+dispatches to `app.ScreentimeTagger`, which owns `config.Config`,
+`aw/client.ActivityWatchClient`, `classify/classifier.Classifier`
+(keys in `classify/sites.py`, list in `classify/violent.py`),
+`store/cache.DecisionCache`, `store/corrections.CorrectionList`,
+`store/state.PollState`, and `system/load_gate.LoadGate`.
+Shared HTTP retries live in `http.py`. Pure-function tests in `tests/`.
 
 Hierarchy: `violent-screentime` if matching `violent.md` (model-applied) >
 `screentime` for games, movies, shows, streams, videos, shortform >

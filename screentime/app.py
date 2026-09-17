@@ -1,21 +1,29 @@
 """ScreentimeTagger: the main class. Owns one client, classifier, cache,
 corrections list and poll state; every operation below orchestrates them.
 """
+from __future__ import annotations
+
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 
-from aw_client import ActivityWatchClient
-from cache import DecisionCache
-from classifier import Classifier
-from config import CORRECTION_KINDS
-from corrections import CorrectionList, parse_hm, resolve_day
-from load_gate import LoadGate
-from state import PollState
+from screentime.aw.client import ActivityWatchClient
+from screentime.classify.classifier import Classifier
+from screentime.classify.sites import target
+from screentime.classify.violent import load_violent, mtime_ns
+from screentime.config import CORRECTION_KINDS
+from screentime.store.cache import DecisionCache
+from screentime.store.corrections import CorrectionList, parse_hm, resolve_day
+from screentime.store.state import PollState
+from screentime.system.load_gate import LoadGate
+
+if TYPE_CHECKING:
+    from screentime.config import Config
 
 
 class ScreentimeTagger:
-    def __init__(self, config):
+    def __init__(self, config: Config):
         self.config = config
         self.client = ActivityWatchClient(config.aw_host)
         self.cache = DecisionCache(config.cache_path, config.cache_max)
@@ -24,19 +32,30 @@ class ScreentimeTagger:
         self.gate = LoadGate(config.ollama_url, config.ollama_model,
                              config.max_gpu_util, config.min_free_mb,
                              config.idle_gpu_util)
+        self._classifier = None
+        self._violent_mtime = None
 
-    def _classifier(self):
-        entries = Classifier.load_violent(self.config.violent_path)
-        return Classifier(self.config.ollama_model, self.config.ollama_url,
-                          entries)
+    def _get_classifier(self):
+        # Reload violent.md only when the file actually changed instead of
+        # on every event; reuse the built system prompt otherwise.
+        mtime = mtime_ns(self.config.violent_path)
+        if self._classifier is None or mtime != self._violent_mtime:
+            entries = load_violent(self.config.violent_path)
+            if self._classifier is None:
+                self._classifier = Classifier(
+                    self.config.ollama_model, self.config.ollama_url, entries)
+            else:
+                self._classifier.refresh(entries)
+            self._violent_mtime = mtime
+        return self._classifier
 
     def _auto(self, app, title):
         """Cache read, else model verdict (stored). Never a correction."""
-        kind, key = Classifier.target(app, title)
+        kind, key = target(app, title)
         hit = self.cache.get(kind, key)
         if hit is not None:
             return hit
-        res = self._classifier().decide(kind, key)
+        res = self._get_classifier().decide(kind, key)
         if res is None:
             return "non-screentime", "model unreachable, defaulted"
         self.cache.put(kind, key, res[0], res[1], self.config.ollama_model)
@@ -64,8 +83,13 @@ class ScreentimeTagger:
         dest = self._labels_bucket(wb)
         last_id = self.state.get_last(wb)
         events = self.client.window_events(wb, limit=1000)
-        latest = self.client.latest_event(wb)
-        live_id = latest.get("id", -1) if latest else -1
+        if not events:
+            if verbose:
+                print(f"{wb}: 0 new -> {dest}")
+            return 0
+        # window_events already returns the newest; skip the live (growing)
+        # event without a second round-trip for latest_event.
+        live_id = max(e.get("id", -1) for e in events)
         new = [e for e in events if last_id < e.get("id", -1) < live_id]
         max_id = last_id
         for e in sorted(new, key=lambda x: x.get("id", 0)):
@@ -94,7 +118,7 @@ class ScreentimeTagger:
                 busy, changed = self.gate.check()
                 if busy:
                     if changed:
-                        util, free = self.gate.gpu_status()
+                        util, free = self.gate.last_status
                         self.gate.unload_model()
                         print(f"pausing: gpu {util}%, {free}MiB free - "
                               f"unloading model until resources free up",
@@ -111,7 +135,6 @@ class ScreentimeTagger:
             time.sleep(self.config.poll_interval)
 
     def recheck(self, days):
-        from datetime import date as _date
         wb = self.client.window_bucket_id()
         if not wb:
             raise RuntimeError("No aw-watcher-window bucket — is ActivityWatch running?")
@@ -127,28 +150,31 @@ class ScreentimeTagger:
         self.corrections = CorrectionList(self.config.corrections_path)
         if self.corrections.entries:
             print(f"{len(self.corrections.entries)} corrections loaded")
-        day_objs = [_date.fromisoformat(d) for d in days]
+        day_objs = [date.fromisoformat(d) for d in days]
         all_events = []
         for d in day_objs:
             s, e = self._day_range(d)
             all_events += [(d, ev) for ev in
                            self.client.query_range(wb, s, e)]
-        latest = self.client.latest_event(wb)
-        live_id = latest.get("id", -1) if latest else -1
+        if not all_events:
+            print("No window events in range.")
+            return True
+        live_id = max(ev.get("id", -1) for _, ev in all_events)
         skipped = [ev for _, ev in all_events if ev.get("id", -1) == live_id]
         all_events = [(d, ev) for d, ev in all_events
                       if ev.get("id", -1) != live_id]
         if skipped:
             print("skipped live event (still growing; poll loop gets it later)")
         print(f"{len(all_events)} window events across {[str(d) for d in day_objs]}")
+        by_day = {}
+        for d, ev in all_events:
+            by_day.setdefault(d, []).append(ev)
         undecided = []
         for d in day_objs:
             s, e = self._day_range(d)
             deleted = self.client.delete_in_range(dest, s, e)
             n = 0
-            for dd, ev in all_events:
-                if dd != d:
-                    continue
+            for ev in by_day.get(d, []):
                 app = (ev.get("data") or {}).get("app", "")
                 title = (ev.get("data") or {}).get("title", "")
                 label, reason = self.classify_event(app, title, ev.get("timestamp"))
@@ -192,26 +218,13 @@ class ScreentimeTagger:
         if rule not in CORRECTION_KINDS:
             print(f"bad rule: {rule} - one of {', '.join(CORRECTION_KINDS)}")
             return False
-        from datetime import time as _time
-        start = datetime.combine(day, _time(h1, mi1)).astimezone()
-        end = datetime.combine(end_day, _time(h2, mi2)).astimezone()
-        if end <= start:
-            print("end must be after start - aborting")
+        try:
+            head, overlap = self.corrections.append_entry(
+                day, (h1, mi1), end_day, (h2, mi2), rule, note)
+        except ValueError as ex:
+            print(f"{ex} - aborting")
             return False
-        overlap = [c for c in self.corrections.entries
-                   if c["start"] < end and start < c["end"]]
-        if day == end_day:
-            head = (f"## {day.isoformat()} {h1:02d}:{mi1:02d}"
-                    f"–{h2:02d}:{mi2:02d}")
-        else:
-            head = (f"## {day.isoformat()} {h1:02d}:{mi1:02d}–"
-                    f"{end_day.isoformat()} {h2:02d}:{mi2:02d}")
-        with open(self.config.corrections_path, "a", encoding="utf-8") as f:
-            f.write(f"\n{head}\nrule: {rule}\n")
-            if note:
-                f.write(f"note: {note[:200]}\n")
-        self.corrections = CorrectionList(self.config.corrections_path)
-        print(f"saved: {head[3:]} rule={rule}")
+        print(f"saved: {head} rule={rule}")
         if overlap:
             print(f"note: overlaps {len(overlap)} existing entr(y/ies) - last entry wins")
         print("applies to new events immediately; run recheck for past days")

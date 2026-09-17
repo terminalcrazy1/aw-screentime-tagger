@@ -1,6 +1,9 @@
 """Configuration: every knob in one dataclass."""
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 
 LABELS = ("violent-screentime", "screentime", "non-screentime")
@@ -8,6 +11,10 @@ LABELS = ("violent-screentime", "screentime", "non-screentime")
 CORRECTION_KINDS = ("with_friends", "extra", "educational", "nonviolent")
 FORCE_NON = ("with_friends", "extra", "educational")
 DOWNGRADE = ("nonviolent",)
+
+
+def repo_root():
+    return Path(__file__).resolve().parent.parent
 
 
 @dataclass
@@ -27,8 +34,8 @@ class Config:
     idle_gpu_util: int = 10
 
     @classmethod
-    def from_env(cls):
-        here = os.path.dirname(os.path.abspath(__file__))
+    def from_env(cls, base_dir=None):
+        here = str(base_dir or repo_root())
         return cls(
             base_dir=here,
             cache_path=os.path.join(here, "cache.md"),

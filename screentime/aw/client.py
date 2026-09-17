@@ -1,8 +1,9 @@
 """ActivityWatch HTTP client. All REST traffic lives here."""
-import json
-import urllib.request
-import urllib.error
+from __future__ import annotations
+
 from datetime import datetime
+
+from screentime.http import request_json
 
 
 class ActivityWatchClient:
@@ -10,18 +11,8 @@ class ActivityWatchClient:
         self.host = host.rstrip("/")
 
     def _req(self, method, path, body=None):
-        data = json.dumps(body).encode() if body is not None else None
-        r = urllib.request.Request(
-            self.host + path, data=data, method=method,
-            headers={"Content-Type": "application/json"})
-        try:
-            with urllib.request.urlopen(r, timeout=60) as resp:
-                raw = resp.read().decode()
-                return json.loads(raw) if raw else None
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                return None
-            raise
+        return request_json(method, self.host + path, body,
+                            timeout=60, retries=1)
 
     def buckets(self):
         return self._req("GET", "/api/0/buckets/") or {}
@@ -33,7 +24,8 @@ class ActivityWatchClient:
         return None
 
     def window_events(self, bucket_id, limit=1000):
-        return self._req("GET", f"/api/0/buckets/{bucket_id}/events?limit={limit}") or []
+        return self._req(
+            "GET", f"/api/0/buckets/{bucket_id}/events?limit={limit}") or []
 
     def latest_event(self, bucket_id):
         evs = self.window_events(bucket_id, limit=1)

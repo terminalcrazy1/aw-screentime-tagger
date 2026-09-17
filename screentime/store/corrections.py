@@ -3,15 +3,31 @@
 An explicit user statement wins over every auto-label. Last entry wins on
 overlap. Unknown rules and malformed sections are skipped.
 """
+from __future__ import annotations
+
 import re
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
+from functools import lru_cache
 
-from config import CORRECTION_KINDS, FORCE_NON, DOWNGRADE
+from screentime.config import CORRECTION_KINDS, DOWNGRADE, FORCE_NON
+
+HM_RE = re.compile(r"^\s*(\d{1,2}):(\d{2})(?:\s*([ap])\.?\s*m\.?)?\s*$")
+RANGE_TWO_DAY_RE = re.compile(
+    r"^##\s+(\d{4}-\d{2}-\d{2})\s+"
+    r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*(?:-|–|—|to)\s*"
+    r"(\d{4}-\d{2}-\d{2})\s+"
+    r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*$", re.IGNORECASE)
+RANGE_ONE_DAY_RE = re.compile(
+    r"^##\s+(\d{4}-\d{2}-\d{2})\s+"
+    r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*(?:-|–|—|to)\s*"
+    r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*$", re.IGNORECASE)
+RULE_RE = re.compile(r"^rule:\s*(\S+)", re.IGNORECASE)
+NOTE_RE = re.compile(r"^note:\s*(.*)$", re.IGNORECASE)
 
 
+@lru_cache(maxsize=256)
 def parse_hm(s):
-    m = re.match(r"^\s*(\d{1,2}):(\d{2})(?:\s*([ap])\.?\s*m\.?)?\s*$",
-                 (s or "").lower())
+    m = HM_RE.match((s or "").lower())
     if not m:
         raise ValueError(f"bad time: {s!r}, use HH:MM (24h or am/pm)")
     h, mi, ap = int(m.group(1)), int(m.group(2)), m.group(3)
@@ -25,46 +41,37 @@ def parse_hm(s):
 
 
 def parse_section_head(line):
-    from datetime import date as _date, time as _time
     s = (line or "").strip()
-    m = re.match(
-        r"^##\s+(\d{4}-\d{2}-\d{2})\s+"
-        r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*(?:-|–|—|to)\s*"
-        r"(\d{4}-\d{2}-\d{2})\s+"
-        r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*$", s, re.IGNORECASE)
     try:
+        m = RANGE_TWO_DAY_RE.match(s)
         if m:
             h1, mi1 = parse_hm(m.group(2))
             h2, mi2 = parse_hm(m.group(4))
-            start = datetime.combine(_date.fromisoformat(m.group(1)),
-                                     _time(h1, mi1)).astimezone()
-            end = datetime.combine(_date.fromisoformat(m.group(3)),
-                                   _time(h2, mi2)).astimezone()
+            start = datetime.combine(date.fromisoformat(m.group(1)),
+                                     time(h1, mi1)).astimezone()
+            end = datetime.combine(date.fromisoformat(m.group(3)),
+                                   time(h2, mi2)).astimezone()
             return (start, end) if end > start else None
-        m = re.match(
-            r"^##\s+(\d{4}-\d{2}-\d{2})\s+"
-            r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*(?:-|–|—|to)\s*"
-            r"(\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?)\s*$", s, re.IGNORECASE)
+        m = RANGE_ONE_DAY_RE.match(s)
         if not m:
             return None
-        day = _date.fromisoformat(m.group(1))
+        day = date.fromisoformat(m.group(1))
         h1, mi1 = parse_hm(m.group(2))
         h2, mi2 = parse_hm(m.group(3))
-        start = datetime.combine(day, _time(h1, mi1)).astimezone()
-        end = datetime.combine(day, _time(h2, mi2)).astimezone()
+        start = datetime.combine(day, time(h1, mi1)).astimezone()
+        end = datetime.combine(day, time(h2, mi2)).astimezone()
     except ValueError:
         return None
     return (start, end) if end > start else None
 
 
 def resolve_day(s):
-    from datetime import date as _date, timedelta as _td
     t = (s or "").strip().lower()
     if t in ("", "today"):
-        return _date.today()
+        return date.today()
     if t == "yesterday":
-        return _date.today() - _td(days=1)
-    return _date.fromisoformat(t)
+        return date.today() - timedelta(days=1)
+    return date.fromisoformat(t)
 
 
 class CorrectionList:
@@ -91,44 +98,42 @@ class CorrectionList:
                 continue
             if cur is None:
                 continue
-            m = re.match(r"^rule:\s*(\S+)", s, re.IGNORECASE)
+            m = RULE_RE.match(s)
             if m and m.group(1).lower() in CORRECTION_KINDS:
                 cur["rule"] = m.group(1).lower()
                 continue
-            m = re.match(r"^note:\s*(.*)$", s, re.IGNORECASE)
+            m = NOTE_RE.match(s)
             if m:
                 cur["note"] = m.group(1).strip()[:200]
         if cur and cur.get("rule"):
             out.append(cur)
+        out.sort(key=lambda c: c["start"])
         return out
 
     def for_timestamp(self, ts_iso, auto_label):
-        """Returns (label, rule) override or (None, None)."""
+        """Returns (label, rule) override or (None, None). Last entry wins."""
         try:
             ts = datetime.fromisoformat(str(ts_iso).replace("Z", "+00:00"))
         except Exception:
             return None, None
-        hit = None
-        for c in self.entries:
+        for c in reversed(self.entries):  # sorted: last match wins, early exit
             try:
                 if c["start"] <= ts < c["end"]:
-                    hit = c
+                    rule = c["rule"]
+                    if rule in FORCE_NON:
+                        return "non-screentime", rule
+                    if rule in DOWNGRADE:
+                        if auto_label == "violent-screentime":
+                            return "screentime", rule
+                        return None, None
+                    return None, None
             except Exception:
                 continue
-        if not hit:
-            return None, None
-        rule = hit["rule"]
-        if rule in FORCE_NON:
-            return "non-screentime", rule
-        if rule in DOWNGRADE:
-            return (("screentime", rule) if auto_label == "violent-screentime"
-                    else (None, None))
         return None, None
 
     def append_entry(self, day, start_hm, end_day, end_hm, rule, note=""):
-        from datetime import time as _time
-        start = datetime.combine(day, _time(*start_hm)).astimezone()
-        end = datetime.combine(end_day, _time(*end_hm)).astimezone()
+        start = datetime.combine(day, time(*start_hm)).astimezone()
+        end = datetime.combine(end_day, time(*end_hm)).astimezone()
         if end <= start:
             raise ValueError("end must be after start")
         overlap = [c for c in self.entries

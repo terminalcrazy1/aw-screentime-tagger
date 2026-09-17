@@ -6,9 +6,11 @@ second to second, so no averaging or hysteresis is needed. Anything
 unmeasurable fails open toward idle so monitoring gaps never stall
 labelling.
 """
-import json
+from __future__ import annotations
+
 import subprocess
-import urllib.request
+
+from screentime.http import request_json
 
 
 class LoadGate:
@@ -20,6 +22,8 @@ class LoadGate:
         self.min_free_mb = min_free_mb
         self.idle_gpu_util = idle_gpu_util
         self.was_busy = False
+        self.last_util = None
+        self.last_free = None
 
     def gpu_status(self):
         """Returns (util_percent, free_mb), each None if unmeasurable."""
@@ -39,9 +43,16 @@ class LoadGate:
                 nums.append(int(num) if num else None)
             util = nums[0] if len(nums) > 0 else None
             free = nums[1] if len(nums) > 1 else None
+            self.last_util, self.last_free = util, free
             return util, free
         except Exception:
+            self.last_util, self.last_free = None, None
             return None, None
+
+    @property
+    def last_status(self):
+        """Most recent (util, free) reading. No extra nvidia-smi spawn."""
+        return self.last_util, self.last_free
 
     def is_busy(self):
         """Pause triggers: low free VRAM (a heavy game resident) or high
@@ -64,15 +75,12 @@ class LoadGate:
 
     def unload_model(self):
         """Force the model out of VRAM. Returns True if acknowledged."""
-        body = json.dumps({"model": self.model, "prompt": "ok",
-                           "stream": False, "keep_alive": 0,
-                           "options": {"num_predict": 1}}).encode()
         try:
-            req = urllib.request.Request(
-                self.ollama_url + "/api/generate", data=body,
-                headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=30):
-                pass
+            request_json(
+                "POST", self.ollama_url + "/api/generate",
+                {"model": self.model, "prompt": "ok", "stream": False,
+                 "keep_alive": 0, "options": {"num_predict": 1}},
+                timeout=30, retries=0)
             return True
         except Exception:
             return False
