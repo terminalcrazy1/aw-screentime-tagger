@@ -270,85 +270,85 @@ tag: non-screentime
 reason: The website is unrelated to the listed games or videos.
 decided: 2026-09-12T02:58:11.261804+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: updater.exe
 tag: non-screentime
 reason: updating
 decided: 2026-09-12T12:50:11.358288+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: firefox.com
 tag: non-screentime
 reason: browsing
 decided: 2026-09-12T12:50:42.222561+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: rustbases.gg
 tag: non-screentime
 reason: browser mention
 decided: 2026-09-12T15:31:01.644178+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: steamcmd.exe
 tag: non-screentime
 reason: steamcmd.exe is not a listed game and does not indicate screentime.
 decided: 2026-09-12T18:33:08.816704+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: drive.google.com
 tag: non-screentime
 reason: browser activity
 decided: 2026-09-12T18:40:22.078746+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: nvdisplay.container.exe
 tag: non-screentime
 reason: unnamed application
 decided: 2026-09-12T19:44:52.704006+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: openwith.exe
 tag: non-screentime
 reason: unknown application
 decided: 2026-09-12T20:44:01.564334+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: unknown
 tag: non-screentime
 reason: unknown app
 decided: 2026-09-13T00:18:11.694182+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: regedit.exe
 tag: non-screentime
 reason: registry editor usage
 decided: 2026-09-13T00:21:29.588372+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: mmc.exe
 tag: non-screentime
 reason: mmc.exe is not a listed game or video platform.
 decided: 2026-09-13T00:23:01.254334+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: docs.google.com
 tag: non-screentime
 reason: browser activity
 decided: 2026-09-13T04:44:24.212014+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: preview.redd.it
 tag: non-screentime
 reason: browser
 decided: 2026-09-14T01:51:22.307538+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: tiktok.com
 tag: non-screentime
 reason: browsing
 decided: 2026-09-14T01:54:59.131304+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: tf_win64.exe
 tag: violent-screentime
 reason: rustclient.exe matches
@@ -360,45 +360,46 @@ tag: non-screentime
 reason: non-gaming app
 decided: 2026-09-15T00:46:21.483953+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: wsl.exe
 tag: non-screentime
 reason: unknown application
 decided: 2026-09-15T01:03:56.049893+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: discord.com
 tag: non-screentime
 reason: browsing
 decided: 2026-09-17T19:35:47.078070+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: spotify_installer-1.3.0.277.g5441bb3e-5065.exe
 tag: non-screentime
 reason: installer
 decided: 2026-09-17T19:35:48.377312+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: instagram.com
 tag: non-screentime
 reason: browsing
 decided: 2026-09-17T19:35:50.258058+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## app: git-credential-manager.exe
 tag: non-screentime
 reason: non-gaming/non-video activity
 decided: 2026-09-17T19:44:32.871908+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: hackintosh.com
 tag: non-screentime
 reason: website browsing
 decided: 2026-09-17T20:19:24.917771+00:00
 model: qwen2.5:7b
-
+reviewed: 2026-09-18
 ## site: tonymacx86.com
 tag: non-screentime
 reason: browsing
 decided: 2026-09-17T20:21:15.828552+00:00
 model: qwen2.5:7b
+reviewed: 2026-09-18
