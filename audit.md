@@ -1,10 +1,10 @@
-# Audit 2026-09-18 (mistral-small-latest)
+# Audit 2026-09-19 (mistral-small-latest)
 
-Reviewed 23 decisions. 22 agree, 0 to alter, 1 errors.
-Tokens this run: 1082 in / 296 out.
+Reviewed 3 decisions. 2 agree, 0 to alter, 1 errors.
+Tokens this run: 341 in / 60 out.
 
 Only entries without a `reviewed:` stamp were processed.
 
 ## Errors
 
-- `app: tf_win64.exe`: unparseable reply: 1 DISAGREE tag:non_screentime reason:tf_win64.exe does not match rustclient.exe
+- `site: rustreborn.gg`: unparseable reply: 1. DISAGREE tag:source reason:site name doesn't match rustclient.exe

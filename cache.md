@@ -350,8 +350,8 @@ decided: 2026-09-14T01:54:59.131304+00:00
 model: qwen2.5:7b
 reviewed: 2026-09-18
 ## app: tf_win64.exe
-tag: violent-screentime
-reason: rustclient.exe matches
+tag: screentime
+reason: hand fix: Team Fortress 2 is a video game, not on the violent list
 decided: 2026-09-14T22:19:38.690101+00:00
 model: qwen2.5:7b
 
@@ -403,3 +403,22 @@ reason: browsing
 decided: 2026-09-17T20:21:15.828552+00:00
 model: qwen2.5:7b
 reviewed: 2026-09-18
+
+## site: rustreborn.gg
+tag: violent-screentime
+reason: rustclient.exe
+decided: 2026-09-18T21:07:59.763190+00:00
+model: qwen2.5:7b
+
+## site: dictionary.com
+tag: non-screentime
+reason: browsing
+decided: 2026-09-18T21:15:43.552702+00:00
+model: qwen2.5:7b
+reviewed: 2026-09-19
+## site: tappedout.net
+tag: non-screentime
+reason: website browsing
+decided: 2026-09-19T02:17:48.400745+00:00
+model: qwen2.5:7b
+reviewed: 2026-09-19
